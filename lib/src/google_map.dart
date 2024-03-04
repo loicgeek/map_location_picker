@@ -213,6 +213,9 @@ class GoogleMapLocationPicker extends StatefulWidget {
 
   final double? viewElevation;
 
+  // Used to customize the appearance of the marker being placed on the map.
+  final BitmapDescriptor? icon;
+
   const GoogleMapLocationPicker({
     Key? key,
     this.onPlacesDetailsResponse,
@@ -295,6 +298,7 @@ class GoogleMapLocationPicker extends StatefulWidget {
     this.hideMapTypeButton = false,
     this.hideBottomCard = false,
     this.onDecodeAddress,
+    this.icon = BitmapDescriptor.defaultMarker,
   }) : super(key: key);
 
   @override
@@ -413,9 +417,24 @@ class _GoogleMapLocationPickerState extends State<GoogleMapLocationPicker> {
                     _controller.complete(controller),
                 markers: {
                   Marker(
-                    markerId: const MarkerId('one'),
-                    position: _initialPosition,
-                  ),
+                      draggable: true,
+                      markerId: const MarkerId('one'),
+                      icon: widget.icon!,
+                      position: _initialPosition,
+                      onDragEnd: (position) async {
+                        _initialPosition = position;
+                        final controller = await _controller.future;
+                        controller.animateCamera(
+                          CameraUpdate.newCameraPosition(cameraPosition()),
+                        );
+                        _decodeAddress(
+                          Location(
+                            lat: position.latitude,
+                            lng: position.longitude,
+                          ),
+                        );
+                        setState(() {});
+                      }),
                 },
                 myLocationButtonEnabled: false,
                 myLocationEnabled: true,
