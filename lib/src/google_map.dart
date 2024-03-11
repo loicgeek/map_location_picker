@@ -208,7 +208,7 @@ class GoogleMapLocationPicker extends StatefulWidget {
   final void Function(Prediction?)? onSuggestionSelected;
   final void Function(PlacesDetailsResponse?)? onPlacesDetailsResponse;
 
-  final FutureOr<Iterable<Widget>> Function(BuildContext, SearchController)?
+  final Iterable<Widget> Function(BuildContext, SearchController)?
       suggestionsBuilder;
 
   final double? viewElevation;
@@ -522,11 +522,11 @@ class _GoogleMapLocationPickerState extends State<GoogleMapLocationPicker> {
                           );
 
                           // updating the suggestion box modal data
-                          _decodeAddress(
-                            Location(
-                                lat: _initialPosition.latitude,
-                                lng: _initialPosition.longitude),
-                          );
+                          // _decodeAddress(
+                          //   Location(
+                          //       lat: _initialPosition.latitude,
+                          //       lng: _initialPosition.longitude),
+                          // );
 
                           setState(() {});
                         },

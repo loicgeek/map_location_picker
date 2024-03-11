@@ -103,7 +103,7 @@ class PlacesAutocomplete extends StatelessWidget {
   ///
   /// By default, the list returned by this builder is laid out in a [ListView].
   /// [suggestionsBuilder] is overridden the [listBuilder]
-  final FutureOr<Iterable<Widget>> Function(BuildContext, SearchController)?
+  final Iterable<Widget> Function(BuildContext, SearchController)?
       suggestionsBuilder;
 
   /// Called to get the suggestion list for the search view.
