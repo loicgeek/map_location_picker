@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart';
 
 import '../map_location_picker.dart';
+import 'debouncer.dart';
 import 'logger.dart';
 
 class PlacesAutocomplete extends StatelessWidget {
@@ -202,7 +203,10 @@ class PlacesAutocomplete extends StatelessWidget {
   /// On suggestion selected callback
   final void Function(Prediction?)? onSuggestionSelected;
 
-  const PlacesAutocomplete({
+  /// Loading widget
+  final Widget Function()? loadingWidget;
+
+  PlacesAutocomplete({
     Key? key,
     required this.apiKey,
     this.language,
@@ -249,6 +253,7 @@ class PlacesAutocomplete extends StatelessWidget {
     this.constraints,
     this.barPadding,
     this.barSide,
+    this.loadingWidget,
   }) : super(key: key);
 
   /// Get [AutoCompleteState] for [AutoCompleteTextField]
@@ -257,6 +262,9 @@ class PlacesAutocomplete extends StatelessWidget {
         baseUrl: placesBaseUrl,
         httpClient: placesHttpClient,
       );
+
+  Timer? _debounceTimer;
+  List<Prediction>? results;
 
   @override
   Widget build(BuildContext context) {
@@ -291,56 +299,81 @@ class PlacesAutocomplete extends StatelessWidget {
       viewTrailing: viewTrailing,
       suggestionsBuilder: suggestionsBuilder ??
           (context, controller) {
-            final searchFuture = autoCompleteState.search(
-              controller.text,
-              apiKey,
-              language: language,
-              sessionToken: sessionToken,
-              region: region,
-              components: components,
-              location: location,
-              offset: offset,
-              origin: origin,
-              radius: radius,
-              strictbounds: strictbounds,
-              types: types,
-            );
+            final completer = Completer<List<Prediction>>();
+            // Cancel the previous debounce timer if it exists to prevent extra calls
+            if (_debounceTimer != null && _debounceTimer!.isActive) {
+              _debounceTimer!.cancel();
+            }
+            // Start a new debounce timer
+            _debounceTimer = Timer(const Duration(milliseconds: 500), () async {
+              results = await autoCompleteState.search(
+                controller.text,
+                apiKey,
+                language: language,
+                sessionToken: sessionToken,
+                region: region,
+                components: components,
+                location: location,
+                offset: offset,
+                origin: origin,
+                radius: radius,
+                strictbounds: strictbounds,
+                types: types,
+              );
+              completer.complete(results);
+            });
+
             return [
               FutureBuilder(
-                future: searchFuture,
+                future: completer.future,
                 builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.done) {
-                    final List<Prediction>? predictions = snapshot.data;
+                  if (snapshot.connectionState == ConnectionState.done ||
+                      results != null) {
+                    final List<Prediction>? predictions =
+                        (snapshot.connectionState == ConnectionState.done)
+                            ? snapshot.data
+                            : results;
                     if (predictions == null) {
                       return const Text("No results found");
                     }
-                    return listBuilder?.call(context, predictions) ??
-                        ListView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          itemCount: predictions.length,
-                          itemBuilder: (BuildContext context, int index) {
-                            final Prediction prediction = predictions[index];
-                            return ListTile(
-                              minVerticalPadding: 0,
-                              contentPadding: EdgeInsets.zero,
-                              onTap: () {
-                                _getDetailsByPlaceId(
-                                  prediction.placeId ?? "",
-                                  context,
-                                );
-                                onSuggestionSelected?.call(prediction);
-                                controller.text = prediction.description ?? "";
-                                FocusScope.of(context).unfocus();
-                              },
-                              title: Text(prediction.description ??
-                                  prediction.structuredFormatting?.mainText ??
-                                  "No title"),
-                            );
-                          },
-                        );
+                    return Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: listBuilder?.call(context, predictions) ??
+                          ListView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: predictions.length,
+                            itemBuilder: (BuildContext context, int index) {
+                              final Prediction prediction = predictions[index];
+                              return ListTile(
+                                minVerticalPadding: 0,
+                                contentPadding: EdgeInsets.zero,
+                                onTap: () {
+                                  controller.closeView(null);
+                                  _getDetailsByPlaceId(
+                                    prediction.placeId ?? "",
+                                    context,
+                                  );
+                                  onSuggestionSelected?.call(prediction);
+                                  controller.text =
+                                      prediction.description ?? "";
+                                  FocusScope.of(context).unfocus();
+                                },
+                                title: Text(prediction.description ??
+                                    prediction.structuredFormatting?.mainText ??
+                                    "No title"),
+                              );
+                            },
+                          ),
+                    );
                   }
-                  return const LinearProgressIndicator();
+                  if (snapshot.connectionState == ConnectionState.waiting ||
+                      snapshot.connectionState == ConnectionState.active) {
+                    return loadingWidget?.call() ??
+                        const LinearProgressIndicator();
+                  }
+
+                  return SizedBox();
                 },
               ),
             ];

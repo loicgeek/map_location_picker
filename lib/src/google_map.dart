@@ -216,6 +216,9 @@ class GoogleMapLocationPicker extends StatefulWidget {
   // Used to customize the appearance of the marker being placed on the map.
   final BitmapDescriptor? icon;
 
+  /// Loading widget
+  final Widget Function()? loadingWidget;
+
   const GoogleMapLocationPicker({
     Key? key,
     this.onPlacesDetailsResponse,
@@ -299,6 +302,7 @@ class GoogleMapLocationPicker extends StatefulWidget {
     this.hideBottomCard = false,
     this.onDecodeAddress,
     this.icon = BitmapDescriptor.defaultMarker,
+    this.loadingWidget,
   }) : super(key: key);
 
   @override
@@ -530,6 +534,7 @@ class _GoogleMapLocationPickerState extends State<GoogleMapLocationPicker> {
 
                           setState(() {});
                         },
+                        loadingWidget: widget.loadingWidget,
                       ),
                     ),
                   Spacer(),
